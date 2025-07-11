@@ -19,7 +19,7 @@ Before this version, plugin is not able to serve artifacts when archive exceeds 
 
 ### Version 1.3
 
-- Avoid ZipException thrown when accessing artifiacts while archiving. [4720879](https://github.com/jenkinsci/compress-artifacts-plugin/commit/47208791705ed6d77bbc4931fe8f1f4517c9b9bc)
+- Avoid ZipException thrown when accessing artifacts while archiving. [4720879](https://github.com/jenkinsci/compress-artifacts-plugin/commit/47208791705ed6d77bbc4931fe8f1f4517c9b9bc)
 
 ### Version 1.2
 

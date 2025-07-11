@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.compress_artifacts;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.BuildListener;
@@ -42,7 +43,7 @@ final class CompressingArtifactManager extends ArtifactManager {
         onLoad(build);
     }
 
-    @Override public void onLoad(Run<?,?> build) {
+    @Override public void onLoad(@NonNull Run<?,?> build) {
         this.build = build;
     }
 

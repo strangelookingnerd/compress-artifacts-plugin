@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.compress_artifacts;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.BuildListener;
@@ -48,8 +49,6 @@ import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import javax.annotation.Nonnull;
-
 import jenkins.util.VirtualFile;
 
 import org.springframework.web.util.UriUtils;
@@ -65,11 +64,8 @@ final class ZipStorage extends VirtualFile {
         // Use temporary file for writing, rename when done
         File tempArchive = new File(archive.getAbsolutePath() + ".writing.zip");
 
-        OutputStream os = new FileOutputStream(tempArchive);
-        try {
+        try (OutputStream os = new FileOutputStream(tempArchive)) {
             workspace.archive(ArchiverFactory.ZIP, os, new FilePath.ExplicitlySpecifiedDirScanner(artifacts));
-        } finally {
-            os.close();
         }
 
         tempArchive.renameTo(archive);
@@ -86,12 +82,12 @@ final class ZipStorage extends VirtualFile {
         this.archive = archive;
         this.path = path;
     }
-    
-    @Override public String getName() {
+
+    @Override @NonNull public String getName() {
         return path.replaceFirst("^(.+/)?([^/]+)/?$", "$2");
     }
-    
-    @Override public URI toURI() {
+
+    @Override @NonNull public URI toURI() {
         try {
             // If no scheme is provided, beginning of the path is parsed as the scheme causing validation problems.
             // Using some scheme to workaround that + prepending prefix to avoid empty URI path.
@@ -120,15 +116,14 @@ final class ZipStorage extends VirtualFile {
     }
 
     private boolean looksLikeDir() {
-        return path.length() == 0 || path.endsWith("/");
+        return path.isEmpty() || path.endsWith("/");
     }
-    
+
     @Override public boolean isDirectory() throws IOException {
         if (!looksLikeDir() || !archive.exists()) {
             return false;
         }
-        ZipFile zf = new ZipFile(archive);
-        try {
+        try (ZipFile zf = new ZipFile(archive)) {
             Enumeration<? extends ZipEntry> entries = zf.entries();
             while (entries.hasMoreElements()) {
                 ZipEntry entry = entries.nextElement();
@@ -138,28 +133,22 @@ final class ZipStorage extends VirtualFile {
                 }
             }
             return false;
-        } finally {
-            zf.close();
         }
     }
-    
+
     @Override public boolean isFile() throws IOException {
         if (looksLikeDir() || !archive.exists()) {
             return false;
         }
-        ZipFile zf = new ZipFile(archive);
-        try {
+        try (ZipFile zf = new ZipFile(archive)) {
             return zf.getEntry(path) != null;
-        } finally {
-            zf.close();
         }
     }
-    
+
     @Override public boolean exists() throws IOException {
         if (!archive.exists()) return false;
 
-        ZipFile zf = new ZipFile(archive);
-        try {
+        try (ZipFile zf = new ZipFile(archive)) {
             Enumeration<? extends ZipEntry> entries = zf.entries();
             while (entries.hasMoreElements()) {
                 ZipEntry entry = entries.nextElement();
@@ -169,18 +158,15 @@ final class ZipStorage extends VirtualFile {
                 }
             }
             return false;
-        } finally {
-            zf.close();
         }
     }
-    
-    @Override public VirtualFile[] list() throws IOException {
+
+    @Override @NonNull public VirtualFile[] list() throws IOException {
         if (!looksLikeDir() || !archive.exists()) {
             return new VirtualFile[0];
         }
-        ZipFile zf = new ZipFile(archive);
-        try {
-            Set<VirtualFile> files = new HashSet<VirtualFile>();
+        try (ZipFile zf = new ZipFile(archive)) {
+            Set<VirtualFile> files = new HashSet<>();
             Enumeration<? extends ZipEntry> entries = zf.entries();
             while (entries.hasMoreElements()) {
                 ZipEntry entry = entries.nextElement();
@@ -190,13 +176,11 @@ final class ZipStorage extends VirtualFile {
                     files.add(new ZipStorage(archive, pth));
                 }
             }
-            return files.toArray(new VirtualFile[files.size()]);
-        } finally {
-            zf.close();
+            return files.toArray(new VirtualFile[0]);
         }
     }
-    
-    @Override public VirtualFile child(String name) {
+
+    @Override @NonNull public VirtualFile child(@NonNull String name) {
         // TODO this is ugly; would be better to not require / on path
         ZipStorage f = new ZipStorage(archive, path + name + '/');
         try {
@@ -207,31 +191,25 @@ final class ZipStorage extends VirtualFile {
         }
         return new ZipStorage(archive, path + name);
     }
-    
+
     @Override public long length() throws IOException {
         if (!archive.exists()) return 0;
 
-        ZipFile zf = new ZipFile(archive);
-        try {
+        try (ZipFile zf = new ZipFile(archive)) {
             ZipEntry entry = zf.getEntry(path);
             return entry != null ? entry.getSize() : 0;
-        } finally {
-            zf.close();
         }
     }
-    
+
     @Override public long lastModified() throws IOException {
         if (!archive.exists()) return 0;
 
-        ZipFile zf = new ZipFile(archive);
-        try {
+        try (ZipFile zf = new ZipFile(archive)) {
             ZipEntry entry = zf.getEntry(path);
             return entry != null ? entry.getTime() : 0;
-        } finally {
-            zf.close();
         }
     }
-    
+
     @Override public boolean canRead() throws IOException {
         return true;
     }
@@ -257,10 +235,10 @@ final class ZipStorage extends VirtualFile {
 
         private static final Logger LOGGER = Logger.getLogger(EntryInputStream.class.getName());
 
-        private final @Nonnull ZipFile archive;
+        private final @NonNull ZipFile archive;
         private Exception acquired = new Exception("Opened by:");
 
-        private EntryInputStream(ZipFile archive, ZipEntry entry) throws IOException {
+        private EntryInputStream(@NonNull ZipFile archive, ZipEntry entry) throws IOException {
             super(archive.getInputStream(entry));
             this.archive = archive;
         }

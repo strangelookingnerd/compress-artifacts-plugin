@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.compress_artifacts;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import hudson.model.Run;
 import jenkins.model.ArtifactManager;
@@ -41,7 +42,7 @@ public final class CompressingArtifactManagerFactory extends ArtifactManagerFact
 
     @Extension public static final class DescriptorImpl extends ArtifactManagerFactoryDescriptor {
 
-        @Override public String getDisplayName() {
+        @Override @NonNull public String getDisplayName() {
             return "Compress Artifacts";
         }
 

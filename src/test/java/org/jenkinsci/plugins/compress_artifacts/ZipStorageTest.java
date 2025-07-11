@@ -24,6 +24,7 @@
 
 package org.jenkinsci.plugins.compress_artifacts;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.FilePath;
 import hudson.Functions;
 import hudson.Launcher;
@@ -35,6 +36,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -75,13 +77,13 @@ public class ZipStorageTest {
     }
 
     @Test public void basics() throws Exception {
-        FileUtils.writeStringToFile(new File(content, "top"), "top");
+        FileUtils.writeStringToFile(new File(content, "top"), "top", StandardCharsets.UTF_8);
         File dirF = new File(content, "dir");
         assertTrue(dirF.mkdir());
-        FileUtils.writeStringToFile(new File(dirF, "sub"), "sub");
+        FileUtils.writeStringToFile(new File(dirF, "sub"), "sub", StandardCharsets.UTF_8);
         new File(content, "dir/nested").mkdir();
 
-        Map<String,String> artifacts = new HashMap<String,String>();
+        Map<String,String> artifacts = new HashMap<>();
         artifacts.put("top", "top");
         artifacts.put("dir/sub", "dir/sub");
         artifacts.put("dir/nested", "dir/nested");
@@ -92,7 +94,7 @@ public class ZipStorageTest {
         doBasics(zs);
 
         // This is broken in VirtualFile#FileVF
-        assertEquals(null, zs.getParent());
+        assertNull(zs.getParent());
     }
 
     private void doBasics(VirtualFile vf) throws Exception {
@@ -144,31 +146,28 @@ public class ZipStorageTest {
     }
 
     private String read(VirtualFile vf) throws IOException {
-        InputStream open = vf.open();
-        try {
-            return IOUtils.toString(open);
-        } finally {
-            open.close();
+        try (InputStream open = vf.open()) {
+            return IOUtils.toString(open, StandardCharsets.UTF_8);
         }
     }
-    
+
     @Deprecated
     @Test public void globList() throws Exception {
         FileUtils.writeStringToFile(new File(content, "top"), "top");
         File dir1 = new File(content, "folder1");
         assertTrue(dir1.mkdir());
         FileUtils.writeStringToFile(new File(dir1, "file1.txt"), "file1Content");
-        
+
         File dir2 = new File(content,"folder2");
         assertTrue(dir2.mkdir());
         FileUtils.writeStringToFile(new File(dir2,"file2.log"), "file2Content");
-        
-        Map<String,String> artifacts = new HashMap<String,String>();
+
+        Map<String,String> artifacts = new HashMap<>();
         artifacts.put("top", "top");
         artifacts.put("folder1/file1.txt", "folder1/file1.txt");
         artifacts.put("folder2/file2.log", "folder2/file2.log");
         archive(artifacts);
-        
+
         doGlobList(canonical);
         doGlobList(zs);
     }
@@ -192,7 +191,7 @@ public class ZipStorageTest {
 
     @Test public void readError() throws Exception {
         new File(content, "dir").mkdir();
-        Map<String,String> artifacts = new HashMap<String,String>();
+        Map<String,String> artifacts = new HashMap<>();
         artifacts.put("dir", "dir");
         archive(artifacts);
 
@@ -205,7 +204,7 @@ public class ZipStorageTest {
     private void doReadNonexistingDir(VirtualFile vf) {
         try {
             VirtualFile child = vf.child("there_is_none");
-            fail("expected " + child + " to not exist but got: " + IOUtils.toString(child.open()));
+            fail("expected " + child + " to not exist but got: " + IOUtils.toString(child.open(), StandardCharsets.UTF_8));
         } catch (IOException ex) {
             // good
         }
@@ -213,14 +212,14 @@ public class ZipStorageTest {
     private void doReadDir(VirtualFile vf) throws IOException {
         try {
             VirtualFile child = vf.list()[0];
-            fail("expected " + child + " to be a directory but got: " + IOUtils.toString(child.open()));
+            fail("expected " + child + " to be a directory but got: " + IOUtils.toString(child.open(), StandardCharsets.UTF_8));
         } catch (IOException ex) {
             // good
         }
     }
 
     @Test public void operateOnNonexistingFiles() throws Exception {
-        archive(new HashMap<String,String>());
+        archive(new HashMap<>());
 
         doRead(canonical);
         doRead(zs);
@@ -232,18 +231,20 @@ public class ZipStorageTest {
 
     @Test
     public void avoidZipExceptionWhileWriting() throws Exception {
-        FileUtils.writeStringToFile(new File(content, "file"), "content");
+        FileUtils.writeStringToFile(new File(content, "file"), "content", StandardCharsets.UTF_8);
 
         final Entry<String, String> validArtifact = Collections.singletonMap("file", "file").entrySet().iterator().next();
 
         // Simulate archiving that takes forever serving valid artifact and then block forever on the next.
-        final Map<String,String> artifacts = new HashMap<String,String>() {
+        final Map<String,String> artifacts = new HashMap<>() {
             @Override
+            @NonNull
             public Set<Map.Entry<String, String>> entrySet() {
-                return new HashSet<Map.Entry<String, String>>() {
+                return new HashSet<>() {
                     @Override
+                    @NonNull
                     public Iterator<Map.Entry<String, String>> iterator() {
-                        return new Iterator<Map.Entry<String, String>>() {
+                        return new Iterator<>() {
                             private boolean block = false;
 
                             public boolean hasNext() {
@@ -331,7 +332,7 @@ public class ZipStorageTest {
         File subdir = new File(content, dirname);
         subdir.mkdirs();
 
-        FileUtils.writeStringToFile(new File(subdir, filename), "content");
+        FileUtils.writeStringToFile(new File(subdir, filename), "content", StandardCharsets.UTF_8);
 
         String fullname = dirname + "/" + filename;
         archive(Collections.singletonMap(fullname, fullname));

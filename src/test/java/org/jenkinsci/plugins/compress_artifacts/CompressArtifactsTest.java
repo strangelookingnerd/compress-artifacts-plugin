@@ -43,6 +43,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import jenkins.model.ArtifactManagerFactory;
@@ -69,7 +70,7 @@ public class CompressArtifactsTest {
 
     @Before
     public void setUp() {
-        ArtifactManagerConfiguration amc = Jenkins.getInstance().getInjector().getInstance(ArtifactManagerConfiguration.class);
+        ArtifactManagerConfiguration amc = Jenkins.get().getInjector().getInstance(ArtifactManagerConfiguration.class);
         DescribableList<ArtifactManagerFactory, ArtifactManagerFactoryDescriptor> factories = amc.getArtifactManagerFactories();
         factories.clear();
         factories.add(new CompressingArtifactManagerFactory());
@@ -117,7 +118,7 @@ public class CompressArtifactsTest {
                 nested.mkdirs();
 
                 for (int i = 0; i < 2500; i++) {
-                    String name = "file." + Integer.toString(i) + ".txt";
+                    String name = "file." + i + ".txt";
                     ws.child(name).write(name, "UTF-8");
                     nested.child("nested." + name).write(name, "UTF-8");
                 }
@@ -132,11 +133,8 @@ public class CompressArtifactsTest {
 
         // read the content
         for (Run<FreeStyleProject, FreeStyleBuild>.Artifact a: artifacts) {
-            final InputStream artifactStream = build.getArtifactManager().root().child(a.relativePath).open();
-            try {
-                assertThat(IOUtils.toString(artifactStream), endsWith("txt"));
-            } finally {
-                artifactStream.close();
+            try (InputStream artifactStream = build.getArtifactManager().root().child(a.relativePath).open()) {
+                assertThat(IOUtils.toString(artifactStream, StandardCharsets.UTF_8), endsWith("txt"));
             }
         }
     }
@@ -170,12 +168,9 @@ public class CompressArtifactsTest {
         long length = archiveZip.length();
         assertThat(Functions.humanReadableByteSize(length), length, Matchers.greaterThanOrEqualTo(4L * 1024 * 1024 * 1024));
 
-        assertThat(build.getArtifacts(), Matchers.<Run<FreeStyleProject, FreeStyleBuild>.Artifact>iterableWithSize(artifactCount));
-        InputStream open = build.getArtifactManager().root().child("stuff" + (artifactCount - 1)).open();
-        try {
+        assertThat(build.getArtifacts(), Matchers.iterableWithSize(artifactCount));
+        try (InputStream open = build.getArtifactManager().root().child("stuff" + (artifactCount - 1)).open()) {
             IOUtils.copy(open, OutputStream.nullOutputStream());
-        } finally {
-            open.close();
         }
 
 
@@ -224,24 +219,18 @@ public class CompressArtifactsTest {
                 long length = 2L * 1024 * 1024 * 1024;
                 final FilePath src = new FilePath(Which.jarFile(Jenkins.class));
 
-                final OutputStream out = target.write();
-                try {
+                try (OutputStream out = target.write()) {
                     do {
                         IOUtils.copy(src.read(), out);
                     } while (target.length() < length);
-                } finally {
-                    out.close();
                 }
                 return true;
             }
         });
         p.getPublishersList().add(new ArtifactArchiver("**/*", null, false));
         FreeStyleBuild build = j.buildAndAssertSuccess(p);
-        InputStream out = build.getArtifactManager().root().child("out").open();
-        try {
+        try (InputStream out = build.getArtifactManager().root().child("out").open()) {
             IOUtils.copy(out, OutputStream.nullOutputStream());
-        } finally {
-             out.close();
         }
     }
 
